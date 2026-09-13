@@ -1,0 +1,49 @@
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.conda/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+
+# Local databases & uploads
+*.db
+*.sqlite
+*.sqlite3
+preconsult.db
+backend/preconsult.db
+uploads/voice/*
+!uploads/voice/.gitkeep
+backend/uploads/voice/*
+!backend/uploads/voice/.gitkeep
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Other workspace folders
+certificates/
+codes/
+documentations/
+OMNIMED/
+SIRIUS/
+antigravity/
