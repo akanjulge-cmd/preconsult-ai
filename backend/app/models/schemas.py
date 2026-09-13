@@ -255,6 +255,8 @@ class VoiceProcessResponse(BaseModel):
 class PatientIntakeCreateRequest(BaseModel):
     session_id: str = "SES-DEMO"
     sessionId: Optional[str] = None
+    user_id: Optional[str] = None
+    userId: Optional[str] = None
     patient_identifier: Optional[str] = None
     patientIdentifier: Optional[str] = None
     selected_body_region: Optional[str] = None
@@ -293,8 +295,12 @@ class PatientIntakeCreateRequest(BaseModel):
         if isinstance(data, dict):
             if not data.get("session_id") and data.get("sessionId"):
                 data["session_id"] = data["sessionId"]
+            if not data.get("user_id") and data.get("userId"):
+                data["user_id"] = data["userId"]
             if not data.get("patient_identifier") and data.get("patientIdentifier"):
                 data["patient_identifier"] = data["patientIdentifier"]
+            if not data.get("user_id") and data.get("patient_identifier") and str(data.get("patient_identifier")).startswith("USR-"):
+                data["user_id"] = data.get("patient_identifier")
             
             # body region
             b_reg = data.get("selected_body_region") or data.get("body_region") or data.get("bodyRegion")

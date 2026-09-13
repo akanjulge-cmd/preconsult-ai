@@ -444,14 +444,23 @@ def save_patient_intake(request: PatientIntakeCreateRequest, session: Session = 
         existing.is_patient_confirmed = request.is_patient_confirmed
         existing.safety_result_json = json.dumps(request.safety_result) if request.safety_result else None
         existing.triage_urgency = request.triage_urgency or "ROUTINE"
+        if request.user_id:
+            existing.user_id = request.user_id
+        elif not existing.user_id and intake_sess and intake_sess.user_id:
+            existing.user_id = intake_sess.user_id
         existing.updated_at = datetime.utcnow()
         session.add(existing)
         target = existing
     else:
+        resolved_user_id = request.user_id or (intake_sess.user_id if intake_sess else None)
+        if not resolved_user_id and request.patient_identifier and str(request.patient_identifier).startswith("USR-"):
+            resolved_user_id = request.patient_identifier
+            
         new_intake = PatientIntakeDB(
             id=intake_id,
             session_id=request.session_id,
-            patient_identifier=request.patient_identifier or intake_sess.patient_identifier or "PAT-ANON",
+            user_id=resolved_user_id,
+            patient_identifier=request.patient_identifier or (intake_sess.patient_identifier if intake_sess else None) or "PAT-ANON",
             timestamp=datetime.utcnow(),
             selected_body_region=request.selected_body_region,
             anatomical_zone=request.anatomical_zone,

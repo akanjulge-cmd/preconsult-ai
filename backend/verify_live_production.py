@@ -31,13 +31,23 @@ r_draco = requests.get(f"{FRONTEND_URL}/draco/draco_decoder.wasm", timeout=15)
 assert r_draco.status_code == 200, f"Draco wasm failed: {r_draco.status_code}"
 print(f"[PASS] 3. Draco WASM Decoder served ({len(r_draco.content):,} bytes)")
 
-# 4. Backend Root Health
-r_health = requests.get(f"{BACKEND_URL}/health", timeout=15)
-assert r_health.status_code == 200, f"Root health failed: {r_health.status_code}"
+# 4. Backend Root Health & Deployment Spin-up Wait
+print("[...] Waiting for Render backend service to respond...")
+r_health = None
+for attempt in range(1, 15):
+    try:
+        r_health = requests.get(f"{BACKEND_URL}/health", timeout=30)
+        if r_health.status_code == 200:
+            break
+    except Exception as e:
+        print(f"  Attempt {attempt}/15 waiting for Render build/deploy: {e}")
+        time.sleep(8)
+
+assert r_health and r_health.status_code == 200, f"Root health failed: {r_health.status_code if r_health else 'Timeout'}"
 print(f"[PASS] 4. Root /health live on Render: {r_health.json()}")
 
 # 5. Backend Database & API Health
-r_api_health = requests.get(f"{BACKEND_URL}/api/v1/health", timeout=15)
+r_api_health = requests.get(f"{BACKEND_URL}/api/v1/health", timeout=30)
 assert r_api_health.status_code == 200, f"API health failed: {r_api_health.status_code}"
 data = r_api_health.json()
 assert data.get("database_connected") is True, "Database not connected!"

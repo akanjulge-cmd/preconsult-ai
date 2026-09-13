@@ -1,5 +1,128 @@
-export const BACKEND_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+const PROD_BACKEND_URL = 'https://preconsult-ai-backend.onrender.com';
+const DEV_BACKEND_URL = 'http://127.0.0.1:8000';
+
+export const BACKEND_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+    ? PROD_BACKEND_URL
+    : DEV_BACKEND_URL)
+).replace(/\/+$/, '');
+
 export const API_BASE = `${BACKEND_URL}/api/v1`;
+
+// Token storage & auth header utilities
+const AUTH_STORAGE_KEY = 'preconsult_auth_token';
+
+export function getAuthToken() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(AUTH_STORAGE_KEY);
+}
+
+export function setAuthToken(token) {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    localStorage.setItem(AUTH_STORAGE_KEY, token);
+  } else {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+}
+
+export function clearAuthToken() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+export function authHeaders(extraHeaders = {}) {
+  const headers = { ...extraHeaders };
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+export async function loginUser(email, password) {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Login failed with status ${res.status}`);
+  }
+  const data = await res.json();
+  if (data.access_token) {
+    setAuthToken(data.access_token);
+  }
+  return data;
+}
+
+export async function registerPatient(patientData) {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patientData),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Registration failed with status ${res.status}`);
+  }
+  const data = await res.json();
+  if (data.access_token) {
+    setAuthToken(data.access_token);
+  }
+  return data;
+}
+
+export async function getCurrentUser() {
+  const token = getAuthToken();
+  if (!token) return null;
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    if (res.status === 401) {
+      clearAuthToken();
+      return null;
+    }
+    throw new Error(`Failed to fetch current user (HTTP ${res.status})`);
+  }
+  return await res.json();
+}
+
+export async function updateProfile(profileData) {
+  const res = await fetch(`${API_BASE}/auth/profile`, {
+    method: 'PUT',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(profileData),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Profile update failed (HTTP ${res.status})`);
+  }
+  return await res.json();
+}
+
+export async function getPatientIntakes() {
+  const res = await fetch(`${API_BASE}/patient/intakes`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch patient intakes (HTTP ${res.status})`);
+  }
+  return await res.json();
+}
+
+export async function getPatientDocuments() {
+  const res = await fetch(`${API_BASE}/patient/documents`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch patient documents (HTTP ${res.status})`);
+  }
+  return await res.json();
+}
 
 export function getAudioStreamUrl(pathOrFilename) {
   if (!pathOrFilename) return null;
@@ -14,13 +137,14 @@ export function getAudioStreamUrl(pathOrFilename) {
 
 export const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
-export async function checkHealth(maxRetries = 3, retryDelayMs = 1500) {
+export async function checkHealth(maxRetries = 5, retryDelayMs = 2000, onAttempt = null) {
   let lastErr = null;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    if (onAttempt) onAttempt(attempt, maxRetries);
     try {
-      const healthUrl = BACKEND_URL ? `${BACKEND_URL}/health` : '/health';
+      const healthUrl = `${BACKEND_URL}/health`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
       const res = await fetch(healthUrl, { signal: controller.signal });
       clearTimeout(timeoutId);
 
@@ -212,13 +336,16 @@ export async function persistPatientIntake(intakeData) {
   try {
     const res = await fetch(`${API_BASE}/intake/record`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Persist intake failed: HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
-    console.warn('Backend persistPatientIntake failed, caching in local session:', err);
+    if (!IS_DEMO_MODE) {
+      throw err;
+    }
+    console.warn('Backend persistPatientIntake failed, using demo mode fallback:', err);
     return {
       intake_id: `INTAKE-LOCAL-${Date.now()}`,
       session_id: payload.session_id,

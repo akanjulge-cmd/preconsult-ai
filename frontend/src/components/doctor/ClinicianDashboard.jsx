@@ -24,6 +24,7 @@ export default function ClinicianDashboard({
 
   // Queue & Selection State
   const [queue, setQueue] = useState([]);
+  const emergencyCount = queue.filter((q) => q.triage_urgency === 'EMERGENCY' || q.red_flag_active).length;
   const [selectedSessionId, setSelectedSessionId] = useState(
     activeSession?.session_id || 'SES-GERD-01'
   );

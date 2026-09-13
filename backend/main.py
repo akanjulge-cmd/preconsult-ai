@@ -5,12 +5,18 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.api.router import api_router
 from app.db.session import init_db, engine
+from app.api.routes.auth import seed_demo_accounts_if_needed
 from sqlmodel import Session, text
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: initialize database tables
+    # Startup: initialize database tables and seed demo accounts
     init_db()
+    try:
+        with Session(engine) as db_sess:
+            seed_demo_accounts_if_needed(db_sess)
+    except Exception as e:
+        print(f"[{settings.APP_NAME}] Warning seeding demo accounts: {e}")
     print(f"[{settings.APP_NAME}] Database initialized. Running on {settings.HOST}:{settings.PORT}")
     yield
     # Shutdown
@@ -53,10 +59,10 @@ if settings.API_PREFIX != "/api":
 @app.get("/")
 def root():
     return {
-        "service": settings.APP_NAME,
+        "service": "preconsult-ai-backend",
         "version": settings.APP_VERSION,
         "docs_url": "/docs",
-        "health_check": f"{settings.API_PREFIX}/health"
+        "health_check": "/health"
     }
 
 @app.get("/health")
@@ -66,15 +72,15 @@ def health_check():
         with Session(engine) as db_sess:
             db_sess.exec(text("SELECT 1")).first()
     except Exception:
-        db_status = "error"
+        db_status = "unavailable"
 
     return {
-        "status": "ok",
+        "status": "ok" if db_status == "connected" else "degraded",
+        "service": "preconsult-ai-backend",
         "database": db_status,
         "database_connected": db_status == "connected",
-        "service": settings.APP_NAME,
-        "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
+        "version": settings.APP_VERSION,
         "ai_mode": "deterministic_active"
     }
 
