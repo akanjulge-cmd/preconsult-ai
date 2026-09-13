@@ -18,6 +18,7 @@ def get_allowed_origins() -> list[str]:
         "http://127.0.0.1:3001",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://frontend-hazel-six-6dsq834e13.vercel.app",
     ]
     # Allow FRONTEND_URL env var (e.g. from Vercel)
     frontend_url = os.getenv("FRONTEND_URL", "").strip()
