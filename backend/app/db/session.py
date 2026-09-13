@@ -19,10 +19,20 @@ def init_db():
     
     SQLModel.metadata.create_all(engine)
 
-    # Automatically migrate missing columns on existing SQLite databases
-    if engine.dialect.name == "sqlite":
-        with Session(engine) as session:
-            try:
+    # Automatically migrate missing columns on existing PostgreSQL or SQLite databases
+    with Session(engine) as session:
+        try:
+            if engine.dialect.name == "postgresql":
+                # PostgreSQL supports IF NOT EXISTS natively
+                session.exec(text("ALTER TABLE clinical_records ADD COLUMN IF NOT EXISTS review_status VARCHAR DEFAULT 'DRAFT'"))
+                session.exec(text("ALTER TABLE clinical_records ADD COLUMN IF NOT EXISTS clinician_id VARCHAR"))
+                session.exec(text("ALTER TABLE clinical_records ADD COLUMN IF NOT EXISTS rejection_reason VARCHAR"))
+                session.exec(text("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_id VARCHAR"))
+                session.exec(text("ALTER TABLE patient_intakes ADD COLUMN IF NOT EXISTS user_id VARCHAR"))
+                session.exec(text("ALTER TABLE intake_sessions ADD COLUMN IF NOT EXISTS user_id VARCHAR"))
+                session.commit()
+            elif engine.dialect.name == "sqlite":
+                # SQLite PRAGMA checks
                 # clinical_records
                 res_cr = session.exec(text("PRAGMA table_info(clinical_records)")).all()
                 cols_cr = {row[1] for row in res_cr}
@@ -53,8 +63,9 @@ def init_db():
                     session.exec(text("ALTER TABLE intake_sessions ADD COLUMN user_id VARCHAR"))
 
                 session.commit()
-            except Exception as e:
-                print(f"Warning running SQLite schema migration: {e}")
+        except Exception as e:
+            session.rollback()
+            print(f"Warning running schema migration: {e}")
 
 
 def get_session():
