@@ -1,14 +1,18 @@
 import React from 'react';
+import { t } from '../../services/translations';
 
-export default function ConsentStep({ onBack, onConfirm }) {
+export default function ConsentStep({ onBack, onConfirm, language = 'en' }) {
+  const isHi = language === 'hi';
+  const isTe = language === 'te';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div>
         <h2 className="card-title" style={{ color: 'var(--accent-cyan)', marginBottom: '0.25rem' }}>
-          🛡️ Step 3: Plain-Language Clinical Consent
+          🛡️ {t(language, 'consentTitle', 'Step 3: Plain-Language Clinical Consent')}
         </h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-          Please review the following simple principles before beginning your symptom report:
+          {t(language, 'consentSubtitle', 'Please review the following simple principles before beginning your symptom report:')}
         </p>
       </div>
 
@@ -34,11 +38,15 @@ export default function ConsentStep({ onBack, onConfirm }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <span style={{ fontSize: '1.8rem' }}>🩺</span>
             <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--accent-cyan)' }}>
-              Prepares Your Doctor
+              {isHi ? 'चिकित्सक की सहायता' : isTe ? 'వైద్యునికి సహాయం' : 'Prepares Your Doctor'}
             </h3>
           </div>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            PreConsult AI organizes your symptoms into a structured draft for your doctor to review. It does <strong>not</strong> make diagnoses or replace clinical examinations.
+            {isHi
+              ? 'प्रीकंसल्ट एआई आपके लक्षणों को आपके डॉक्टर की समीक्षा के लिए व्यवस्थित करता है। यह स्वयं निदान नहीं करता है।'
+              : isTe
+              ? 'ప్రీకన్సల్ట్ AI మీ లక్షణాలను వైద్యుల సమీక్ష కోసం ఒక నిర్దిష్ట పద్ధతిలో సిద్ధం చేస్తుంది. ఇది రోగ నిర్ధారణ చేయదు.'
+              : 'PreConsult AI organizes your symptoms into a structured draft for your doctor to review. It does not make diagnoses or replace clinical examinations.'}
           </p>
         </div>
 
@@ -57,11 +65,15 @@ export default function ConsentStep({ onBack, onConfirm }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <span style={{ fontSize: '1.8rem' }}>🔒</span>
             <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--accent-emerald)' }}>
-              Confidential & Secure
+              {isHi ? 'गोपनीय और सुरक्षित' : isTe ? 'రహస్యమైనది & భద్రమైనది' : 'Confidential & Secure'}
             </h3>
           </div>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            Your health responses are encrypted and accessible only by your treating healthcare team during this consultation session.
+            {isHi
+              ? 'आपकी जानकारी एन्क्रिप्टेड है और इस परामर्श सत्र के दौरान केवल आपकी स्वास्थ्य टीम द्वारा देखी जा सकती है।'
+              : isTe
+              ? 'మీ వివరాలు ఎన్‌క్రిప్ట్ చేయబడతాయి మరియు ఈ సంప్రదింపు సమయంలో మీ వైద్య బృందానికి మాత్రమే అందుబాటులో ఉంటాయి.'
+              : 'Your health responses are encrypted and accessible only by your treating healthcare team during this consultation session.'}
           </p>
         </div>
 
@@ -80,11 +92,15 @@ export default function ConsentStep({ onBack, onConfirm }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <span style={{ fontSize: '1.8rem' }}>🚨</span>
             <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--accent-rose)' }}>
-              Emergency Safety Guardrails
+              {isHi ? 'आपातकालीन सुरक्षा गार्डरेल' : isTe ? 'అత్యవసర భద్రతా వ్యవస్థ' : 'Emergency Safety Guardrails'}
             </h3>
           </div>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            If life-threatening symptoms (such as acute chest tightness or difficulty breathing) are reported, routine intake immediately pauses to connect you to urgent clinical staff.
+            {isHi
+              ? 'यदि सीने में दर्द या सांस लेने में तकलीफ जैसे आपातकालीन लक्षण पाए जाते हैं, तो सिस्टम तुरंत अलर्ट करता है।'
+              : isTe
+              ? 'ఛాతీ నొప్పి లేదా శ్వాస తీసుకోవడంలో ఇబ్బంది వంటి ప్రాణాంతక లక్షణాలు నమోదైతే, వెంటనే అత్యవసర హెచ్చరిక జారీ అవుతుంది.'
+              : 'If life-threatening symptoms (such as acute chest tightness or difficulty breathing) are reported, routine intake immediately pauses to connect you to urgent clinical staff.'}
           </p>
         </div>
       </div>
@@ -105,7 +121,11 @@ export default function ConsentStep({ onBack, onConfirm }) {
         }}
       >
         <p style={{ fontSize: '1.05rem', fontWeight: '600', color: 'var(--text-primary)', maxWidth: '600px' }}>
-          By tapping below, you agree to submit your symptom details for your physician's clinical review.
+          {isHi
+            ? 'नीचे टैप करके, आप अपने लक्षणों को डॉक्टर की नैदानिक समीक्षा के लिए साझा करने की सहमति देते हैं।'
+            : isTe
+            ? 'కింద బటన్‌పై నొక్కడం ద్వారా, మీ లక్షణాలను వైద్యుల సమీక్షకు సమర్పించడానికి మీరు అంగీకరిస్తున్నారు.'
+            : "By tapping below, you agree to submit your symptom details for your physician's clinical review."}
         </p>
 
         <button
@@ -124,16 +144,16 @@ export default function ConsentStep({ onBack, onConfirm }) {
           }}
           aria-label="I Understand & Begin Intake"
         >
-          ✓ I Understand &amp; Begin Intake &rarr;
+          ✓ {isHi ? 'मैं समझता हूँ और प्रारंभ करें →' : isTe ? 'నేను అర్థం చేసుకున్నాను & ప్రారంభించండి →' : 'I Understand & Begin Intake →'}
         </button>
       </div>
 
       <div className="action-bar">
         <button className="secondary" onClick={onBack}>
-          &larr; Back to Preferences
+          {t(language, 'back', '← Back')}
         </button>
         <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          Step 3 of 7 &bull; Patient Consent &amp; Privacy Notice
+          {isHi ? 'चरण ३ - रोगी सहमति और गोपनीयता' : isTe ? 'దశ 3 - రోగి సమ్మతి & గోప్యత' : 'Step 3 of 8 • Patient Consent & Privacy Notice'}
         </span>
       </div>
     </div>

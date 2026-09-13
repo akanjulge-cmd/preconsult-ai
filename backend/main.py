@@ -4,7 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.api.router import api_router
-from app.db.session import init_db
+from app.db.session import init_db, engine
+from sqlmodel import Session, text
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,11 +61,21 @@ def root():
 
 @app.get("/health")
 def health_check():
+    db_status = "connected"
+    try:
+        with Session(engine) as db_sess:
+            db_sess.exec(text("SELECT 1")).first()
+    except Exception:
+        db_status = "error"
+
     return {
         "status": "ok",
+        "database": db_status,
+        "database_connected": db_status == "connected",
         "service": settings.APP_NAME,
         "version": settings.APP_VERSION,
-        "environment": settings.ENVIRONMENT
+        "environment": settings.ENVIRONMENT,
+        "ai_mode": "deterministic_active"
     }
 
 if __name__ == "__main__":

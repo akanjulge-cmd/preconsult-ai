@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AccessibilityBar from './components/common/AccessibilityBar';
 import IntakeWizard from './components/intake/IntakeWizard';
 import ClinicianDashboard from './components/doctor/ClinicianDashboard';
 import DocumentScanner from './components/documents/DocumentScanner';
-import { checkHealth, createSession, checkSafety, BACKEND_URL } from './services/api';
-
+import SystemDiagnostics from './components/common/SystemDiagnostics';
+import { checkHealth, createSession, checkSafety, BACKEND_URL, IS_DEMO_MODE } from './services/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('patient'); // Default directly to 'patient' experience!
@@ -14,7 +14,7 @@ export default function App() {
   const [motorMode, setMotorMode] = useState('standard');
   const [audioEnabled, setAudioEnabled] = useState(false);
 
-  const [health, setHealth] = useState({ status: 'connecting', detail: null });
+  const [health, setHealth] = useState({ status: 'connecting', detail: null, error: null });
   const [activeSession, setActiveSession] = useState(null);
   const [submittedIntake, setSubmittedIntake] = useState(null);
   const [error, setError] = useState(null);
@@ -31,28 +31,35 @@ export default function App() {
   }, [theme, reducedMotion, textScale, motorMode]);
 
   // Check backend health and auto-create default session
-  useEffect(() => {
-    async function init() {
-      try {
-        const data = await checkHealth();
-        setHealth({ status: 'healthy', detail: data });
-        // Create initial session for patient
-        const sess = await createSession({ preferredLanguage: language, accessibilityMode: 'standard' });
-        setActiveSession(sess);
-      } catch (err) {
-        setHealth({ status: 'error', detail: null });
-        // Offline fallback session for hackathon demo
+  const init = useCallback(async () => {
+    setHealth({ status: 'connecting', detail: null, error: null });
+    try {
+      const data = await checkHealth(3, 1500);
+      setHealth({ status: 'healthy', detail: data, error: null });
+      // Create initial session for patient
+      const sess = await createSession({ preferredLanguage: language, accessibilityMode: 'standard' });
+      setActiveSession(sess);
+    } catch (err) {
+      setHealth({ status: 'error', detail: null, error: err.message || 'Connection failed' });
+      if (IS_DEMO_MODE) {
+        // Explicit demo fallback session only when DEMO_MODE=true
         setActiveSession({
           session_id: 'SES-DEMO-01',
           created_at: new Date().toISOString(),
           status: 'active',
           preferred_language: language,
           accessibility_mode: 'standard',
+          is_demo: true,
         });
+      } else {
+        setActiveSession(null);
       }
     }
-    init();
   }, [language]);
+
+  useEffect(() => {
+    init();
+  }, [init]);
 
   function handleIntakeFinished(intakeData) {
     setSubmittedIntake(intakeData);
@@ -198,18 +205,41 @@ export default function App() {
         />
       )}
 
-      {/* Backend Status Banner (Subtle indicator) */}
-      <div className={`status-banner ${health.status}`}>
-        <div>
+      {/* Backend Status Banner (Live Real-Time Indicator) */}
+      <div className={`status-banner ${health.status}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <strong>System Status: </strong>
           {health.status === 'healthy' && (
-            <span>
-              Connected (FastAPI v{health.detail?.version} &bull; SQLite: Active &bull; AI Mode: {health.detail?.ai_mode})
+            <span style={{ color: '#15803d', fontWeight: 700 }}>
+              Connected (FastAPI v{health.detail?.version || '1.0.0'} &bull; Database: {health.detail?.database_engine === 'postgresql' ? 'PostgreSQL (Connected)' : (health.detail?.database || 'Connected')} &bull; AI Mode: {health.detail?.ai_mode || 'Active'})
             </span>
           )}
-          {health.status === 'connecting' && <span>Connecting to Backend...</span>}
+          {health.status === 'connecting' && (
+            <span style={{ color: '#0284c7', fontWeight: 600 }}>
+              Connecting to Backend... (Warming up cloud service)
+            </span>
+          )}
           {health.status === 'error' && (
-            <span>Operating in Resilient Offline Demo Mode (Backend unavailable, mock data active)</span>
+            <span style={{ color: '#dc2626', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+              Backend Unavailable ({health.error || 'Connection Timeout'})
+              <button
+                onClick={init}
+                style={{
+                  minHeight: '28px',
+                  minWidth: 'auto',
+                  padding: '0.2rem 0.6rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                🔄 Retry Connection
+              </button>
+            </span>
           )}
         </div>
         {activeSession && (
@@ -263,34 +293,7 @@ export default function App() {
 
       {/* MAIN VIEW 4: System Status & Diagnostic Overview */}
       <div style={{ display: activeTab === 'status' ? 'block' : 'none' }}>
-        <div className="card">
-          <h2 className="card-title">⚙️ Architecture & Diagnostic Overview</h2>
-          <div className="grid-2">
-            <div style={{ background: 'rgba(0,0,0,0.25)', padding: '1rem', borderRadius: '10px' }}>
-              <h3 style={{ fontSize: '1rem', color: 'var(--accent-cyan)', marginBottom: '0.5rem' }}>
-                Backend Connectivity
-              </h3>
-              <ul style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', listStylePosition: 'inside', lineHeight: '1.6' }}>
-                <li>Host: <code>{BACKEND_URL || 'Direct Origin / Proxy'}</code></li>
-                <li>Database: {health.detail?.database_connected ? 'Connected' : 'Mock/Offline'}</li>
-                <li>API Prefix: <code>/api/v1</code></li>
-                <li>Active Session: {activeSession?.session_id || 'None'}</li>
-              </ul>
-            </div>
-            <div style={{ background: 'rgba(0,0,0,0.25)', padding: '1rem', borderRadius: '10px' }}>
-              <h3 style={{ fontSize: '1rem', color: 'var(--accent-emerald)', marginBottom: '0.5rem' }}>
-                Accessibility Capabilities
-              </h3>
-              <ul style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', listStylePosition: 'inside', lineHeight: '1.6' }}>
-                <li>Non-Speaking AAC Mode: Touch-only visual semantics</li>
-                <li>Tremor Motor Assistance: Large touch targets (&ge; 68px)</li>
-                <li>High-Contrast Mode: WCAG AAA compliance (#000/#fff/#ffff00)</li>
-                <li>Reduced Motion: Animated SVG fallbacks</li>
-                <li>Audio Guidance: Web Speech API text-to-speech</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+        <SystemDiagnostics activeSession={activeSession} />
       </div>
 
       {/* Footer */}

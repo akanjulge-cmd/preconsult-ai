@@ -12,20 +12,71 @@ export function getAudioStreamUrl(pathOrFilename) {
   return `${BACKEND_URL}${cleanPath}`;
 }
 
-export async function checkHealth() {
-  try {
-    const healthUrl = BACKEND_URL ? `${BACKEND_URL}/health` : '/health';
-    const res = await fetch(healthUrl);
-    if (!res.ok) {
-      const fallbackRes = await fetch(`${API_BASE}/health`);
-      if (!fallbackRes.ok) throw new Error(`HTTP ${fallbackRes.status}`);
-      return await fallbackRes.json();
+export const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+
+export async function checkHealth(maxRetries = 3, retryDelayMs = 1500) {
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const healthUrl = BACKEND_URL ? `${BACKEND_URL}/health` : '/health';
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const res = await fetch(healthUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const fallbackRes = await fetch(`${API_BASE}/health`);
+        if (!fallbackRes.ok) throw new Error(`HTTP ${fallbackRes.status}`);
+        return await fallbackRes.json();
+      }
+      return await res.json();
+    } catch (err) {
+      lastErr = err;
+      console.warn(`Health check attempt ${attempt}/${maxRetries} failed:`, err.message);
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, retryDelayMs * attempt));
+      }
     }
-    return await res.json();
-  } catch (err) {
-    console.error('Health check failed:', err);
-    throw err;
   }
+  console.error('All health check attempts failed:', lastErr);
+  throw lastErr;
+}
+
+export async function uploadVoiceAudio(blob, {
+  language = 'en',
+  bodyRegion = 'right_upper_abdomen',
+  anatomicalZone = 'Right Upper Quadrant (RUQ)',
+  clientTranscript = '',
+  sessionId = null,
+} = {}) {
+  const formData = new FormData();
+  if (blob) {
+    formData.append('audio', blob, 'patient_recording.webm');
+  } else {
+    const emptyBlob = new Blob(['empty_audio_stream'], { type: 'audio/webm' });
+    formData.append('audio', emptyBlob, 'manual_input.webm');
+  }
+
+  formData.append('language', language || 'en');
+  formData.append('body_region', bodyRegion || 'right_upper_abdomen');
+  formData.append('anatomical_zone', anatomicalZone || 'Right Upper Quadrant (RUQ)');
+  if (clientTranscript) {
+    formData.append('client_transcript', clientTranscript);
+  }
+
+  const uploadUrl = sessionId
+    ? `${BACKEND_URL}/api/intake/${sessionId}/voice/upload`
+    : `${BACKEND_URL}/api/intake/voice/upload`;
+
+  const response = await fetch(uploadUrl, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Voice upload failed with HTTP ${response.status}`);
+  }
+  return await response.json();
 }
 
 export async function createSession({ preferredLanguage = 'en', accessibilityMode = 'standard' } = {}) {
@@ -228,54 +279,58 @@ export async function getClinicianQueue() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
-    console.warn('Backend queue fetch failed, using offline fallback demo queue:', err);
-    return [
-      {
-        session_id: 'SES-GERD-01',
-        record_id: 'REC-GERD-01',
-        patient_id: 'PAT-4821',
-        patient_name: 'Maria Gonzalez (48F)',
-        ticket: 'P-248',
-        chief_complaint: 'Burning / Acidity sensation in Epigastrium (Upper Stomach)',
-        triage_urgency: 'ROUTINE',
-        review_status: 'DRAFT',
-        is_approved: false,
-        red_flag_active: false,
-        confidence_score: 0.95,
-        created_at: new Date(Date.now() - 12 * 60000).toISOString(),
-        is_live: false,
-      },
-      {
-        session_id: 'SES-CARDIAC-99',
-        record_id: 'REC-CARD-99',
-        patient_id: 'PAT-9110',
-        patient_name: 'Robert Chen (62M)',
-        ticket: 'P-911',
-        chief_complaint: 'Crushing pressure in Mid-Chest / Precordium with Left Arm Radiation',
-        triage_urgency: 'EMERGENCY',
-        review_status: 'DRAFT',
-        is_approved: false,
-        red_flag_active: true,
-        confidence_score: 0.98,
-        created_at: new Date(Date.now() - 5 * 60000).toISOString(),
-        is_live: false,
-      },
-      {
-        session_id: 'SES-MSK-42',
-        record_id: 'REC-MSK-42',
-        patient_id: 'PAT-3388',
-        patient_name: 'Priya Sharma (34F)',
-        ticket: 'P-415',
-        chief_complaint: 'Sharp / Stabbing pain in Left Knee Joint (Anterior Patellar)',
-        triage_urgency: 'PRIORITY',
-        review_status: 'DRAFT',
-        is_approved: false,
-        red_flag_active: false,
-        confidence_score: 0.93,
-        created_at: new Date(Date.now() - 25 * 60000).toISOString(),
-        is_live: false,
-      },
-    ];
+    if (IS_DEMO_MODE) {
+      console.warn('Backend queue fetch failed, using explicit synthetic demo queue:', err);
+      return [
+        {
+          session_id: 'SES-GERD-01',
+          record_id: 'REC-GERD-01',
+          patient_id: 'PAT-4821',
+          patient_name: 'Maria Gonzalez (48F) [SYNTHETIC DEMO DATA]',
+          ticket: 'P-248',
+          chief_complaint: 'Burning / Acidity sensation in Epigastrium (Upper Stomach)',
+          triage_urgency: 'ROUTINE',
+          review_status: 'DRAFT',
+          is_approved: false,
+          red_flag_active: false,
+          confidence_score: 0.95,
+          created_at: new Date(Date.now() - 12 * 60000).toISOString(),
+          is_live: false,
+        },
+        {
+          session_id: 'SES-CARDIAC-99',
+          record_id: 'REC-CARD-99',
+          patient_id: 'PAT-9110',
+          patient_name: 'Robert Chen (62M) [SYNTHETIC DEMO DATA]',
+          ticket: 'P-911',
+          chief_complaint: 'Crushing pressure in Mid-Chest / Precordium with Left Arm Radiation',
+          triage_urgency: 'EMERGENCY',
+          review_status: 'DRAFT',
+          is_approved: false,
+          red_flag_active: true,
+          confidence_score: 0.98,
+          created_at: new Date(Date.now() - 5 * 60000).toISOString(),
+          is_live: false,
+        },
+        {
+          session_id: 'SES-MSK-42',
+          record_id: 'REC-MSK-42',
+          patient_id: 'PAT-3388',
+          patient_name: 'Priya Sharma (34F) [SYNTHETIC DEMO DATA]',
+          ticket: 'P-415',
+          chief_complaint: 'Sharp / Stabbing pain in Left Knee Joint (Anterior Patellar)',
+          triage_urgency: 'PRIORITY',
+          review_status: 'DRAFT',
+          is_approved: false,
+          red_flag_active: false,
+          confidence_score: 0.93,
+          created_at: new Date(Date.now() - 25 * 60000).toISOString(),
+          is_live: false,
+        },
+      ];
+    }
+    console.error('Backend queue fetch failed in production mode:', err);
+    throw err;
   }
 }
 
@@ -285,8 +340,12 @@ export async function getClinicalSummary(sessionId) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
-    console.warn('Backend getClinicalSummary failed, using resilient fallback:', err);
-    return getOfflineDemoRecord(sessionId);
+    if (IS_DEMO_MODE) {
+      console.warn('Backend getClinicalSummary failed, using explicit demo mode fallback:', err);
+      return getOfflineDemoRecord(sessionId);
+    }
+    console.error('Backend getClinicalSummary failed in production mode:', err);
+    throw err;
   }
 }
 

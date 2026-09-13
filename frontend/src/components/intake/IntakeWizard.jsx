@@ -8,20 +8,23 @@ import SeverityTimeline from '../symptoms/SeverityTimeline';
 import AdaptiveQuestionStep from './AdaptiveQuestionStep';
 import VoiceIntakeCard from './VoiceIntakeCard';
 import { submitSymptom, finalizeAdaptiveIntake, persistPatientIntake } from '../../services/api';
+import { t } from '../../services/translations';
 
 const STEPS = [
-  { id: 1, name: 'Language', label: '1. Language', icon: '🌐' },
-  { id: 2, name: 'Preferences', label: '2. Preferences', icon: '♿' },
-  { id: 3, name: 'Consent', label: '3. Consent', icon: '🛡️' },
-  { id: 4, name: 'Location', label: '4. Location', icon: '📍' },
-  { id: 5, name: 'Sensation', label: '5. Sensation', icon: '⚡' },
-  { id: 6, name: 'Severity', label: '6. Severity', icon: '📊' },
-  { id: 7, name: 'Clarify', label: '7. Clarify', icon: '🎯' },
-  { id: 8, name: 'Confirm', label: '8. Confirm', icon: '✅' },
+  { id: 1, name: 'Language', labelKey: 'stepLanguage', fallback: '1. Language', icon: '🌐' },
+  { id: 2, name: 'Preferences', labelKey: 'stepPreferences', fallback: '2. Preferences', icon: '♿' },
+  { id: 3, name: 'Consent', labelKey: 'stepConsent', fallback: '3. Consent', icon: '🛡️' },
+  { id: 4, name: 'Location', labelKey: 'stepLocation', fallback: '4. Location', icon: '📍' },
+  { id: 5, name: 'Sensation', labelKey: 'stepSensation', fallback: '5. Sensation', icon: '⚡' },
+  { id: 6, name: 'Severity', labelKey: 'stepSeverity', fallback: '6. Severity', icon: '📊' },
+  { id: 7, name: 'Clarify', labelKey: 'stepClarify', fallback: '7. Clarify', icon: '🎯' },
+  { id: 8, name: 'Confirm', labelKey: 'stepConfirm', fallback: '8. Confirm', icon: '✅' },
 ];
 
 export default function IntakeWizard({
   activeSession,
+  language = 'en',
+  setLanguage,
   theme,
   setTheme,
   reducedMotion,
@@ -37,8 +40,14 @@ export default function IntakeWizard({
 }) {
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Intake State
-  const [language, setLanguage] = useState('en');
+  // Fallback internal language state if setLanguage not provided
+  const [localLanguage, setLocalLanguage] = useState(language);
+  const activeLang = language || localLanguage;
+  const handleSelectLanguage = (newLang) => {
+    if (setLanguage) setLanguage(newLang);
+    setLocalLanguage(newLang);
+  };
+
   const [mode, setMode] = useState('non_speaking'); // 'non_speaking' | 'tremor' | 'standard'
 
   // Structured Anatomical Locations Array
@@ -752,7 +761,7 @@ export default function IntakeWizard({
               title={isCompleted && !isSubmitted ? `Return to ${step.name}` : undefined}
             >
               <div className="step-num">{isCompleted ? '✓' : step.id}</div>
-              <span>{step.label}</span>
+              <span>{t(activeLang, step.labelKey, step.fallback)}</span>
             </div>
           );
         })}
@@ -763,8 +772,8 @@ export default function IntakeWizard({
       {/* ========================================================================= */}
       {currentStep === 1 && (
         <LanguageStep
-          selectedLang={language}
-          onSelectLang={setLanguage}
+          selectedLang={activeLang}
+          onSelectLang={handleSelectLanguage}
           onNext={handleLanguageNext}
           audioEnabled={audioEnabled}
         />
@@ -794,7 +803,7 @@ export default function IntakeWizard({
       {/* STEP 3: PLAIN-LANGUAGE CONSENT */}
       {/* ========================================================================= */}
       {currentStep === 3 && (
-        <ConsentStep onBack={handleBack} onConfirm={handleConsentDone} />
+        <ConsentStep onBack={handleBack} onConfirm={handleConsentDone} language={activeLang} />
       )}
 
       {/* ========================================================================= */}
@@ -827,6 +836,7 @@ export default function IntakeWizard({
               sessionId={activeSession?.session_id || 'SES-DEMO'}
               selectedBodyRegion={confirmedLocations[0]?.body_region || 'Abdomen'}
               selectedAnatomicalZone={confirmedLocations[0]?.anatomical_zone || 'Right Upper Quadrant'}
+              language={activeLang}
               onConfirmedIntake={handleVoiceConfirmed}
               reducedMotion={reducedMotion}
               audioEnabled={audioEnabled}
@@ -918,6 +928,7 @@ export default function IntakeWizard({
             sessionId={activeSession?.session_id || 'SES-DEMO'}
             selectedBodyRegion={confirmedLocations[0]?.body_region || 'Abdomen'}
             selectedAnatomicalZone={confirmedLocations[0]?.anatomical_zone || 'Right Upper Quadrant'}
+            language={activeLang}
             onConfirmedIntake={handleVoiceConfirmed}
             reducedMotion={reducedMotion}
             audioEnabled={audioEnabled}

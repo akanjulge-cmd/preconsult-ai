@@ -383,7 +383,466 @@ export default function ClinicianDashboard({
     record?.audio_filename
   );
 
-  const emergencyCount = queue.filter((q) => q.triage_urgency === 'EMERGENCY').length;
+  // Sub-view: Overview
+  function renderOverview() {
+    const totalPatients = queue.length;
+    const emerg = queue.filter((q) => q.triage_urgency === 'EMERGENCY').length;
+    const prio = queue.filter((q) => q.triage_urgency === 'PRIORITY').length;
+    const approved = queue.filter((q) => q.is_approved).length;
+
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', padding: '0.25rem' }}>
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', margin: '0 0 0.35rem 0' }}>
+            📊 Clinical Unit Overview &amp; Operational Metrics
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0 }}>
+            Live departmental throughput, patient intake volume, and acute clinical triage status.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '1rem' }}>
+          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '1rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Waiting Room Queue</div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#0f172a', marginTop: '0.25rem' }}>{totalPatients}</div>
+            <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '0.2rem' }}>Active Patient Sessions</div>
+          </div>
+          <div style={{ background: '#ffffff', border: '1px solid #fecdd3', borderRadius: '14px', padding: '1rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#dc2626', textTransform: 'uppercase' }}>Red-Flag Alerts</div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#dc2626', marginTop: '0.25rem' }}>{emerg}</div>
+            <div style={{ fontSize: '0.75rem', color: '#b91c1c', marginTop: '0.2rem' }}>Immediate STAT Evaluation</div>
+          </div>
+          <div style={{ background: '#ffffff', border: '1px solid #bbf7d0', borderRadius: '14px', padding: '1rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#166534', textTransform: 'uppercase' }}>Approved &amp; Signed</div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#15803d', marginTop: '0.25rem' }}>{approved}</div>
+            <div style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '0.2rem' }}>Ready for EHR Ingestion</div>
+          </div>
+          <div style={{ background: '#ffffff', border: '1px solid #e0f2fe', borderRadius: '14px', padding: '1rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase' }}>Avg. Brief Review Time</div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#0284c7', marginTop: '0.25rem' }}>42s</div>
+            <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '0.2rem' }}>60-Second Target Met</div>
+          </div>
+        </div>
+
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '1rem' }}>
+            Recent Incoming Patient Intakes
+          </h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                  <th style={{ padding: '0.65rem 0.85rem' }}>Ticket</th>
+                  <th style={{ padding: '0.65rem 0.85rem' }}>Patient Name</th>
+                  <th style={{ padding: '0.65rem 0.85rem' }}>Chief Complaint</th>
+                  <th style={{ padding: '0.65rem 0.85rem' }}>Urgency</th>
+                  <th style={{ padding: '0.65rem 0.85rem' }}>Review Status</th>
+                  <th style={{ padding: '0.65rem 0.85rem' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {queue.map((item) => (
+                  <tr key={item.session_id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '0.75rem 0.85rem', fontWeight: 800 }}>{item.ticket}</td>
+                    <td style={{ padding: '0.75rem 0.85rem', fontWeight: 700 }}>
+                      {item.patient_name}
+                      {item.is_live === false && (
+                        <span style={{ marginLeft: '0.4rem', fontSize: '0.65rem', color: '#6366f1', background: '#e0e7ff', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                          SYNTHETIC DEMO
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '0.75rem 0.85rem', color: '#475569' }}>{item.chief_complaint}</td>
+                    <td style={{ padding: '0.75rem 0.85rem' }}>
+                      <span
+                        style={{
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          background: item.triage_urgency === 'EMERGENCY' ? '#fee2e2' : item.triage_urgency === 'PRIORITY' ? '#fef3c7' : '#ecfdf5',
+                          color: item.triage_urgency === 'EMERGENCY' ? '#dc2626' : item.triage_urgency === 'PRIORITY' ? '#d97706' : '#059669',
+                        }}
+                      >
+                        {item.triage_urgency}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.75rem 0.85rem', fontWeight: 700, fontSize: '0.8rem', color: item.is_approved ? '#15803d' : '#64748b' }}>
+                      {item.is_approved ? '✓ APPROVED' : item.review_status || 'DRAFT'}
+                    </td>
+                    <td style={{ padding: '0.75rem 0.85rem' }}>
+                      <button
+                        onClick={() => {
+                          setSelectedSessionId(item.session_id);
+                          setActiveNav('Intakes');
+                        }}
+                        className="primary"
+                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem', minHeight: '30px', borderRadius: '8px' }}
+                      >
+                        Open Brief →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Sub-view: Patients Directory
+  function renderPatients() {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', padding: '0.25rem' }}>
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', margin: '0 0 0.35rem 0' }}>
+            👥 Patient Registry &amp; Medical Record Directory
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0 }}>
+            Comprehensive directory of pre-consultation patient records, MRNs, and visit histories.
+          </p>
+        </div>
+
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Patient MRN</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Name &amp; Age</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Latest Chief Complaint</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Triage Priority</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Record Status</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {queue.map((item) => (
+                <tr key={item.session_id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '0.75rem 0.85rem', fontFamily: 'monospace', fontWeight: 700 }}>
+                    {item.record_id || item.patient_id}
+                  </td>
+                  <td style={{ padding: '0.75rem 0.85rem', fontWeight: 800 }}>
+                    {item.patient_name}
+                    {item.is_live === false && (
+                      <span style={{ marginLeft: '0.35rem', fontSize: '0.62rem', color: '#6366f1', background: '#e0e7ff', padding: '0.05rem 0.3rem', borderRadius: '4px' }}>
+                        SYNTHETIC DEMO
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '0.75rem 0.85rem', color: '#475569' }}>{item.chief_complaint}</td>
+                  <td style={{ padding: '0.75rem 0.85rem' }}>
+                    <span
+                      style={{
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        background: item.triage_urgency === 'EMERGENCY' ? '#fee2e2' : item.triage_urgency === 'PRIORITY' ? '#fef3c7' : '#ecfdf5',
+                        color: item.triage_urgency === 'EMERGENCY' ? '#dc2626' : item.triage_urgency === 'PRIORITY' ? '#d97706' : '#059669',
+                      }}
+                    >
+                      {item.triage_urgency}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.75rem 0.85rem', fontSize: '0.8rem', fontWeight: 700, color: item.is_approved ? '#15803d' : '#64748b' }}>
+                    {item.is_approved ? '✓ SIGNED' : 'PENDING'}
+                  </td>
+                  <td style={{ padding: '0.75rem 0.85rem' }}>
+                    <button
+                      onClick={() => {
+                        setSelectedSessionId(item.session_id);
+                        setActiveNav('Intakes');
+                      }}
+                      className="secondary"
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem', minHeight: '30px', borderRadius: '8px' }}
+                    >
+                      View Chart &rarr;
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // Sub-view: Appointments / Clinic Triage Slots
+  function renderAppointments() {
+    const slots = [
+      { time: '09:00 AM', ticket: 'P-101', patient: 'Active Kiosk Patient', complaint: 'Epigastric burning discomfort', status: 'ARRIVED' },
+      { time: '09:30 AM', ticket: 'P-911', patient: 'Robert Chen (62M)', complaint: 'Crushing mid-chest pressure radiating to left arm', status: 'TRIAGED_STAT' },
+      { time: '10:00 AM', ticket: 'P-248', patient: 'Maria Gonzalez (48F)', complaint: 'Acid reflux and upper stomach acidity', status: 'WAITING' },
+      { time: '10:30 AM', ticket: 'P-415', patient: 'Priya Sharma (34F)', complaint: 'Left knee anterior patellar trauma', status: 'SCHEDULED' },
+      { time: '11:00 AM', ticket: 'P-489', patient: 'David Miller (55M)', complaint: 'Right shoulder rotator cuff strain', status: 'SCHEDULED' },
+    ];
+
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', padding: '0.25rem' }}>
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', margin: '0 0 0.35rem 0' }}>
+            📅 Today's Clinical Schedule &amp; Triage Roster
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0 }}>
+            Scheduled pre-consultation time slots and patient check-in timeline.
+          </p>
+        </div>
+
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Time Slot</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Ticket</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Patient</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Chief Concern</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Arrival Status</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {slots.map((s, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '0.75rem 0.85rem', fontWeight: 800, color: '#0284c7' }}>{s.time}</td>
+                  <td style={{ padding: '0.75rem 0.85rem', fontWeight: 800 }}>{s.ticket}</td>
+                  <td style={{ padding: '0.75rem 0.85rem', fontWeight: 700 }}>{s.patient}</td>
+                  <td style={{ padding: '0.75rem 0.85rem', color: '#475569' }}>{s.complaint}</td>
+                  <td style={{ padding: '0.75rem 0.85rem' }}>
+                    <span
+                      style={{
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        background: s.status === 'TRIAGED_STAT' ? '#fee2e2' : s.status === 'ARRIVED' ? '#e0f2fe' : '#f8fafc',
+                        color: s.status === 'TRIAGED_STAT' ? '#dc2626' : s.status === 'ARRIVED' ? '#0284c7' : '#64748b',
+                      }}
+                    >
+                      {s.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.75rem 0.85rem' }}>
+                    <button
+                      onClick={() => setActiveNav('Intakes')}
+                      className="primary"
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem', minHeight: '30px', borderRadius: '8px' }}
+                    >
+                      Attend Patient &rarr;
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // Sub-view: Clinical Records & FHIR Export
+  function renderRecords() {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', padding: '0.25rem' }}>
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', margin: '0 0 0.35rem 0' }}>
+            📑 Signed Clinical Records &amp; Interoperability Hub
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0 }}>
+            Audited clinical pre-consultations, physician digital signatures, and HL7 FHIR R4 export repository.
+          </p>
+        </div>
+
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Record ID</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Patient Name</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Physician Attestation</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Signed Timestamp</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>FHIR Interop</th>
+              </tr>
+            </thead>
+            <tbody>
+              {queue.map((item) => (
+                <tr key={item.session_id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '0.75rem 0.85rem', fontFamily: 'monospace', fontWeight: 800 }}>
+                    {item.record_id || `REC-${item.session_id}`}
+                  </td>
+                  <td style={{ padding: '0.75rem 0.85rem', fontWeight: 700 }}>{item.patient_name}</td>
+                  <td style={{ padding: '0.75rem 0.85rem' }}>
+                    <span style={{ color: item.is_approved ? '#15803d' : '#d97706', fontWeight: 800, fontSize: '0.8rem' }}>
+                      {item.is_approved ? `✓ Verified by ${doctorName}` : 'Pending Physician Verification'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.75rem 0.85rem', color: '#64748b', fontSize: '0.8rem' }}>
+                    {new Date(item.created_at).toLocaleString()}
+                  </td>
+                  <td style={{ padding: '0.75rem 0.85rem' }}>
+                    <button
+                      onClick={() => {
+                        setSelectedSessionId(item.session_id);
+                        handleOpenFhir();
+                      }}
+                      className="secondary"
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem', minHeight: '30px', borderRadius: '8px' }}
+                    >
+                      Export FHIR Bundle &rarr;
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // Sub-view: Emergency Alerts
+  function renderAlerts() {
+    const emergQueue = queue.filter((q) => q.triage_urgency === 'EMERGENCY' || q.red_flag_active);
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', padding: '0.25rem' }}>
+        <div style={{ background: '#fef2f2', borderRadius: '16px', border: '2px solid #fca5a5', padding: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#991b1b', margin: '0 0 0.35rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>🚨</span> Acute Emergency &amp; Red-Flag Intercept Command
+          </h2>
+          <p style={{ color: '#b91c1c', fontSize: '0.88rem', margin: 0 }}>
+            Active deterministic red-flag safety intercepts requiring STAT clinician attention and immediate stabilization protocols.
+          </p>
+        </div>
+
+        {emergQueue.length === 0 ? (
+          <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', textAlign: 'center' }}>
+            <span style={{ fontSize: '2rem' }}>✅</span>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#15803d', marginTop: '0.5rem' }}>
+              No Active Red-Flag Alerts
+            </h3>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+              All waiting room patients are currently triaged within routine or priority clinical limits.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {emergQueue.map((item) => (
+              <div
+                key={item.session_id}
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '16px',
+                  border: '2px solid #ef4444',
+                  padding: '1.25rem',
+                  boxShadow: '0 4px 20px rgba(239, 68, 68, 0.12)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                    <span style={{ background: '#fee2e2', color: '#dc2626', fontWeight: 900, fontSize: '0.78rem', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                      STAT EMERGENCY
+                    </span>
+                    <span style={{ fontWeight: 900, fontSize: '1.1rem', color: '#0f172a' }}>{item.patient_name}</span>
+                    <span style={{ color: '#64748b', fontSize: '0.85rem' }}>({item.ticket})</span>
+                  </div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#b91c1c' }}>{item.chief_complaint}</div>
+                  <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '0.3rem' }}>
+                    Immediate 12-lead ECG, continuous telemetry, and attending physician evaluation required.
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setSelectedSessionId(item.session_id);
+                    setActiveNav('Intakes');
+                  }}
+                  className="primary"
+                  style={{
+                    background: '#dc2626',
+                    borderColor: '#ef4444',
+                    padding: '0.65rem 1.4rem',
+                    fontWeight: 900,
+                    borderRadius: '10px',
+                    boxShadow: '0 4px 14px rgba(220, 38, 38, 0.3)',
+                  }}
+                >
+                  ⚡ Open STAT Brief &rarr;
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Sub-view: Clinician Settings & Unit Configuration
+  function renderSettings() {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', padding: '0.25rem' }}>
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', margin: '0 0 0.35rem 0' }}>
+            ⚙️ Clinician Profile &amp; Hospital Unit Settings
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0 }}>
+            Configure attending credentials, safety guardrail sensitivity, and workflow preferences.
+          </p>
+        </div>
+
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: '700px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: '#334155', marginBottom: '0.35rem' }}>
+              Attending Clinician Name &amp; Degree:
+            </label>
+            <input
+              type="text"
+              value={doctorName}
+              onChange={(e) => setDoctorName(e.target.value)}
+              style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', fontWeight: 600 }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: '#334155', marginBottom: '0.35rem' }}>
+              Clinical Department / Unit:
+            </label>
+            <select
+              style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', fontWeight: 600 }}
+            >
+              <option>Emergency &amp; Acute Care Unit</option>
+              <option>Ambulatory Internal Medicine</option>
+              <option>Gastroenterology Triage Clinic</option>
+              <option>Orthopedic &amp; Sports Medicine</option>
+            </select>
+          </div>
+
+          <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', marginBottom: '0.25rem' }}>
+              🛡️ Deterministic Safety Guardrail Engine:
+            </div>
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+              Status: <strong>Active &amp; Enforced</strong>. Critical red-flags (cardiac chest pain, respiratory distress, acute anaphylaxis) trigger automatic deterministic intercepts and require explicit clinician override.
+            </p>
+          </div>
+
+          <button
+            onClick={() => showToast('✓ Settings updated successfully!')}
+            className="primary"
+            style={{ width: 'fit-content', padding: '0.65rem 1.5rem', borderRadius: '10px', fontWeight: 800 }}
+          >
+            Save Settings
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -529,7 +988,10 @@ export default function ClinicianDashboard({
               return (
                 <div
                   key={item.session_id}
-                  onClick={() => setSelectedSessionId(item.session_id)}
+                  onClick={() => {
+                    setSelectedSessionId(item.session_id);
+                    setActiveNav('Intakes');
+                  }}
                   style={{
                     padding: '0.65rem 0.75rem',
                     borderRadius: '10px',
@@ -563,6 +1025,13 @@ export default function ClinicianDashboard({
                   <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {item.patient_name || item.patient_id}
                   </div>
+                  {item.is_live === false && (
+                    <div>
+                      <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#6366f1', background: '#e0e7ff', padding: '0.05rem 0.3rem', borderRadius: '4px', display: 'inline-block', marginTop: '0.1rem' }}>
+                        SYNTHETIC DEMO
+                      </span>
+                    </div>
+                  )}
                   <div style={{ fontSize: '0.72rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '0.15rem' }}>
                     {item.chief_complaint}
                   </div>
@@ -573,10 +1042,19 @@ export default function ClinicianDashboard({
         </div>
 
         {/* Doctor Identity Stamp */}
-        <div style={{ paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.85rem' }}>
-            SV
-          </div>
+        <div
+          style={{
+            marginTop: 'auto',
+            padding: '0.75rem 0.85rem',
+            borderRadius: '12px',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+          }}
+        >
+          <span style={{ fontSize: '1.4rem' }}>👨‍⚕️</span>
           <div>
             <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#0f172a' }}>{doctorName}</div>
             <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Attending Physician</div>
@@ -585,9 +1063,18 @@ export default function ClinicianDashboard({
       </aside>
 
       {/* ========================================================================= */}
-      {/* PANEL 2: MAIN CLINICAL CANVAS (CENTER AREA) */}
+      {/* PANEL 2: MAIN CLINICAL CANVAS OR SUB-VIEW */}
       {/* ========================================================================= */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
+      {activeNav === 'Overview' && renderOverview()}
+      {activeNav === 'Patients' && renderPatients()}
+      {activeNav === 'Appointments' && renderAppointments()}
+      {activeNav === 'Records' && renderRecords()}
+      {activeNav === 'Alerts' && renderAlerts()}
+      {activeNav === 'Settings' && renderSettings()}
+
+      {activeNav === 'Intakes' && (
+        <>
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
         {/* Header Bar: Patient Overview + 60s Scan Timer + Provenance Filter */}
         <div
           style={{
@@ -813,7 +1300,7 @@ export default function ClinicianDashboard({
                 </span>
                 <audio
                   controls
-                  src={audioUrl.startsWith('http') ? audioUrl : `http://127.0.0.1:8000${audioUrl}`}
+                  src={getAudioStreamUrl(audioUrl)}
                   style={{ height: '32px', flex: 1, maxWidth: '420px' }}
                 />
               </div>
@@ -1371,6 +1858,8 @@ export default function ClinicianDashboard({
           </div>
         </div>
       </aside>
+    </>
+  )}
 
       {/* ========================================================================= */}
       {/* MODALS: APPROVE, REJECT, REGENERATE, FHIR */}

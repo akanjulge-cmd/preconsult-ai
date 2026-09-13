@@ -203,8 +203,12 @@ class VoiceProcessRequest(BaseModel):
         if isinstance(data, dict):
             if not data.get("voice_transcript") and data.get("transcript"):
                 data["voice_transcript"] = data["transcript"]
+            if not data.get("voice_transcript") and data.get("patient_stated_text"):
+                data["voice_transcript"] = data["patient_stated_text"]
             if not data.get("transcript") and data.get("voice_transcript"):
                 data["transcript"] = data["voice_transcript"]
+            if not data.get("language") and data.get("input_language"):
+                data["language"] = data["input_language"]
             if not data.get("selected_body_region") and data.get("body_region"):
                 data["selected_body_region"] = data["body_region"]
             if not data.get("body_region") and data.get("selected_body_region"):
